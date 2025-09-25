@@ -1,2 +1,8 @@
-# sudoku_solver
+## sudoku solver
+
 PHPの数独のソルバー
+
+参考にしたページ
+
+- https://blog.hanhans.net/2021/05/12/sudoku-solver/
+
