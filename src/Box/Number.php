@@ -24,6 +24,9 @@ class Number {
         $this->col = $col;
         $this->block = intdiv($row, 3) * 3 + intdiv($col, 3);
     }
+    public function getCandidates():int {
+        return $this->candidates;
+    }
     public function candidateCount():int {
         return POPCOUNT[$this->candidates];
     }
@@ -38,7 +41,7 @@ class Number {
         return [$this->row, $this->col, $this->block];
     }
     public function getDigit():int {
-        if (($this->digit > 0) && (POPCOUNT[$this->candidates] === 1)) {
+        if (($this->digit === 0) && (POPCOUNT[$this->candidates] === 1)) {
             $this->digit = [
                 1 => 1,
                 2 => 2,

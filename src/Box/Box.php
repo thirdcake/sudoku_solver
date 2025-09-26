@@ -134,6 +134,11 @@ class Box {
         }
         return $disp;
     }
+    // test 用
+    public function dumpNumber(int $r, int $c):int {
+        if(is_int($this->grid[$r][$c])) return $this->grid[$r][$c];
+        return -100;
+    }
     public function __clone():void {
         foreach($this->unsolves as $i => $number) {
             $this->unsolves[$i] = clone $number;
