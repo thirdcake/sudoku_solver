@@ -4,37 +4,53 @@ namespace Sudoku\Box;
 
 class Number {
     private int $candidates;
-    private bool $updated;
-    private bool $original;
     private int $row;
     private int $col;
-    private int $digit = 0;
+    private int $block;
+    private int $digit;
     public function __construct(
-        int $candidates,
-        bool $updated = false,
-        bool $original = false,
+        int $number,
         int $row = 0,
         int $col = 0
     ) {
-        if($candidates === 0) {
+        if($number === 0) {
             $this->candidates = (1 << 9) - 1;
+            $this->digit = 0;
         }else{
-            $this->candidates = $candidates;
-            if($candidates & ($candidates - 1) === 0) {
-                // $candidates!==0 のとき pop_count===1 と同じ
-                for($i=1; $i<=9; $i++) {
-                    if($candidates & (1<<($i-1)) > 1) {
-                        $this->digit = $i;
-                    }
-                }
-            }
+            $this->candidates = 1 << ($number - 1);
+            $this->digit = $number;
         }
-        $this->updated = $updated;
-        $this->original = $original;
         $this->row = $row;
         $this->col = $col;
+        $this->block = intdiv($row, 3) * 3 + intdiv($col, 3);
     }
-    public function isOriginal() {
-        return $this->original;
+    public function candidateCount():int {
+        return POPCOUNT[$this->candidates];
+    }
+    // maskとの突合を消す
+    public function eliminate(int $mask):void {
+        $this->candidates &= ~$mask;
+    }
+    public function valid():bool {
+        return $this->candidates > 0;
+    }
+    public function getRCB():array {
+        return [$this->row, $this->col, $this->block];
+    }
+    public function getDigit():int {
+        if (($this->digit > 0) && (POPCOUNT[$this->candidates] === 1)) {
+            $this->digit = [
+                1 => 1,
+                2 => 2,
+                4 => 3,
+                8 => 4,
+                16 => 5,
+                32 => 6,
+                64 => 7,
+                128 => 8,
+                256 => 9,
+            ][$this->candidates];
+        }
+        return $this->digit;
     }
 }
