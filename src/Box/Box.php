@@ -3,155 +3,106 @@
 namespace Sudoku\Box;
 
 class Box {
+    /**
+     * $row 行 $col 列の候補数をbitで管理する
+     * 人間が見る数独ボードとほぼ同じ
+     */
     private array $grid;
-    private array $unsolves;  // まだ確定していない Number のリスト
+
+    /**
+     * 数字 $num-1 が、行・列・ブロックの何番目の候補になっているかをbitで管理する
+     * $rows[9-1][2] = 110111111; のとき、2行目、3列目に9は入らない
+     * 人間が見る数独ボードとは違う見た目だが、 hidden single などを解くために必要
+     * 数字が、管理の都合上 0-indexであることに注意が必要
+     */
     private array $rows;
     private array $cols;
     private array $blocks;
-    private bool $changed;
 
-    public function __construct(string $problem) {
+    /**
+     * 解けていないindex。
+     */
+    private array $unsolves;
+
+    public function __construct() {
         $this->grid = [];
-        $this->unsolves = [];
-        $this->parse($problem);
 
         $this->rows = [];
         $this->cols = [];
         $this->blocks = [];
+        
+        $this->unsolves = [];
 
         for($i=0; $i<9; $i++) {
-            $this->rows[] = new NumberSet();
-            $this->cols[] = new NumberSet();
-            $this->blocks[] = new NumberSet();
+            for($j=0; $j<9; $j++) {
+                $this->grid[$i][$j] = (1 << 9) - 1;
+                $this->rows[$i][$j] = (1 << 9) - 1;
+                $this->cols[$i][$j] = (1 << 9) - 1;
+                $this->blocks[$i][$j] = (1 << 9) - 1;
+                $this->unsolves[$i*9+$j] = true;
+            }
         }
+    }
+
+    /**
+     * 数字を確定させる。
+     * append しただけでは、同じ行、列などに波及されないことに注意。
+     */
+    public function append(int $num, int $row, int $col):void {
+        if($num!==0) {
+            $this->grid[$row][$col] = 1 << ($num - 1);
+            $this->rows[$num-1][$row] = 1 << $col;
+            $this->cols[$num-1][$col] = 1 << $row;
+
+            $block = intdiv($row, 3) * 3 + intdiv($col, 3);
+            $block_index = ($row % 3) * 3 + ($col % 3);
+            $this->blocks[$num-1][$block] = 1 << $block_index;
+            
+            unset($this->unsolves[$row*9+$col]);
+        }
+    }
+
+    // 矛盾が発生していないか === 81マスに1つでも popcount 0 があれば矛盾
+    public function valid():bool {
         for($r=0; $r<9; $r++) {
             for($c=0; $c<9; $c++) {
-                if(is_int($this->grid[$r][$c])) {
-                    $b = intdiv($r, 3) * 3 + intdiv($c, 3);
-                    $this->rows[$r]->append($this->grid[$r][$c]);
-                    $this->cols[$c]->append($this->grid[$r][$c]);
-                    $this->blocks[$b]->append($this->grid[$r][$c]);
+                if(POPCOUNT[$this->grid[$r][$c]]===0) {
+                    return false;
                 }
             }
         }
-
-        $this->changed = false;
-    }
-    private function parse(string $problem):void {
-        $grid = [];
-        $unsolves = [];
-        $pp = explode(PHP_EOL, $problem);
-        foreach($pp as $row=>$v) {
-            $line = trim($v);
-            $len = strlen($line);
-            for($col=0; $col<$len; $col++) {
-                $num = (int) $line[$col];
-                $number = new Number($num, $row, $col);
-                if($number->getDigit()===0) {
-                    $grid[$row][$col] = $number;
-                    $unsolves[] = $number;
-                }else{
-                    $grid[$row][$col] = $number->getDigit();
-                }
-            }
-        }
-        $this->grid = $grid;
-        $this->unsolves = $unsolves;
-    }
-    public function popMin():Number|null {
-        if(empty($this->unsolved)) {  // 未解明が無ければnull
-            return null;
-        }
-        
-        // candidateCount の大きい順に並べて、最後の要素をpopする
-        // unsolved には、popされたnumberは残らない
-        ursort($this->unsolved, fn($a, $b) =>
-            $a->candidateCount() <=> $b->candidateCount()
-        );
-
-        return array_pop($this->unsolved);
-    }
-    public function setChanged(bool $bool):void {
-        $this->changed = $bool;
-    }
-    public function hasChanged():bool {
-        return $this->changed;
-    }
-    public function placeNumber(Number $number):void {
-        [$r, $c, $b] = $number->getRCB();
-        $digit = $number->getDigit();
-        $this->grid[$r][$c] = $digit;
-        $this->rows[$r]->append($digit);
-        $this->setChanged(true);
-    }
-    public function getUnsolves():array {
-        return $this->unsolves;
-    }
-    public function setUnsolves(array $unsolves):void {
-        $this->unsolves = $unsolves;
-    }
-    public function valid():bool {
-        $flag = true;
-        foreach($this->unsolves as $number) {
-            if($number->valid() === false) {
-                $flag = false;
-            }
-        }
-        foreach($this->rows as $group) {
-            if($group->valid() === false) {
-                $flag = false;
-            }
-        }
-        foreach($this->cols as $group) {
-            if($group->valid() === false) {
-                $flag = false;
-            }
-        }
-        foreach($this->blocks as $group) {
-            if($group->valid() === false) {
-                $flag = false;
-            }
-        }
-        return $flag;
-    }
-    public function getMask(int $r, int $c, int $b):int {
-        $row = $this->rows[$r]->getMask();
-        $col = $this->cols[$c]->getMask();
-        $block = $this->blocks[$b]->getMask();
-        return $row | $col | $block;
-    }
-    public function solved():bool {
         return true;
     }
+
+    // 解けているか === unsolves が空
+    public function solved():bool {
+        return count($this->unsolves)===0;
+    }
+
+    // 答えを表示する文字列
     public function display():string {
-        $disp = '';
-        foreach($this->grid as $line) {
-            $vals = [];
-            foreach($line as $v) {
-                $vals[] = is_int($v) ? $v : '?';
+        $str = '';
+        foreach($this->grid as $row => $line) {
+            foreach($line as $col => $bit) {
+                if(POPCOUNT[$bit]===1) {
+                    $str .= [
+                        1 => 1,
+                        2 => 2,
+                        4 => 3,
+                        8 => 4,
+                        16 => 5,
+                        32 => 6,
+                        64 => 7,
+                        128 => 8,
+                        256 => 9,
+                    ][$bit];
+                }else{
+                    $str .= '0';
+                }
             }
-            $disp .= implode('', $vals).PHP_EOL;
+            $str .= PHP_EOL;
         }
-        return $disp;
-    }
-    // test 用
-    public function dumpNumber(int $r, int $c):int {
-        if(is_int($this->grid[$r][$c])) return $this->grid[$r][$c];
-        return -100;
-    }
-    public function __clone():void {
-        foreach($this->unsolves as $i => $number) {
-            $this->unsolves[$i] = clone $number;
-        }
-        foreach($this->rows as $i => $row) {
-            $this->rows[$i] = clone $row;
-        }
-        foreach($this->cols as $i => $col) {
-            $this->cols[$i] = clone $col;
-        }
-        foreach($this->blocks as $i => $block) {
-            $this->blocks[$i] = clone $block;
-        }
+        return $str;
     }
 }
 

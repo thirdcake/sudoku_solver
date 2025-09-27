@@ -9,14 +9,14 @@ class Solver {
         NakedSingle::class,
     ];
     public static function solve(Box $box):Box {
-
+        /*
         $solvers = self::$solvers;
         foreach($solvers as $solver) {
             $box = $solver::solve($box);
         }
         
         //$box = self::dfs($box);
-
+        */
         return $box;
     }
     /**

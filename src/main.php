@@ -30,15 +30,9 @@ EOL;
 */
 define('POPCOUNT', include __DIR__."/Box/popcount.php");
 
-$box = new \Sudoku\Box\Box($problem);
+$box = \Sudoku\Box\Helper::problemParse($problem);
 
 $box = \Sudoku\Solver\Solver::solve($box);
-
-if($box->solved()) {
-    echo PHP_EOL."------SOLVED------".PHP_EOL;
-}else{
-    echo PHP_EOL."------FAILED------".PHP_EOL;
-}
 
 echo $box->display();
 
