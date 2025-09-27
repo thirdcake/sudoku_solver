@@ -9,7 +9,6 @@ class BoxTest extends TestCase {
 
     #[Test]
     public function get_mask():void {
-        define('POPCOUNT', include dirname(__DIR__,2)."/src/Box/popcount.php");
         $problem = <<<EOL
         023456000
         000000000

@@ -8,7 +8,6 @@ class NumberTest extends TestCase {
 
     #[Test]
     public function candidate_count():void {
-        define('POPCOUNT', include dirname(__DIR__,2)."/src/Box/popcount.php");
         $number = new Number(0, 0, 0);
         $int = $number->candidateCount();
         $this->assertSame(9, $int);
