@@ -7,17 +7,7 @@ class Box {
      * $row 行 $col 列の候補数をbitで管理する
      * 人間が見る数独ボードとほぼ同じ
      */
-    private array $grid;
-
-    /**
-     * 数字 $num-1 が、行・列・ブロックの何番目の候補になっているかをbitで管理する
-     * $rows[9-1][2] = 110111111; のとき、2行目、3列目に9は入らない
-     * 人間が見る数独ボードとは違う見た目だが、 hidden single などを解くために必要
-     * 数字が、管理の都合上 0-indexであることに注意が必要
-     */
-    private array $rows;
-    private array $cols;
-    private array $blocks;
+    private array $candidates;
 
     /**
      * 解けていないindex。
@@ -25,48 +15,73 @@ class Box {
     private array $unsolves;
 
     public function __construct() {
-        $this->grid = [];
+        $this->candidates = [];
 
-        $this->rows = [];
-        $this->cols = [];
-        $this->blocks = [];
-        
-        $this->unsolves = [];
+        $this->unsolves = array_fill(0, 81, true);
 
         for($i=0; $i<9; $i++) {
             for($j=0; $j<9; $j++) {
-                $this->grid[$i][$j] = (1 << 9) - 1;
-                $this->rows[$i][$j] = (1 << 9) - 1;
-                $this->cols[$i][$j] = (1 << 9) - 1;
-                $this->blocks[$i][$j] = (1 << 9) - 1;
-                $this->unsolves[$i*9+$j] = true;
+                $this->candidates[$i][$j] = 0x1FF;  // 2進数で1が9個
             }
         }
     }
 
     /**
      * 数字を確定させる。
-     * append しただけでは、同じ行、列などに波及されないことに注意。
      */
     public function append(int $num, int $row, int $col):void {
         if($num!==0) {
-            $this->grid[$row][$col] = 1 << ($num - 1);
-            $this->rows[$num-1][$row] = 1 << $col;
-            $this->cols[$num-1][$col] = 1 << $row;
-
+            $num -= 1;  // $num は 0-index
             $block = intdiv($row, 3) * 3 + intdiv($col, 3);
-            $block_index = ($row % 3) * 3 + ($col % 3);
-            $this->blocks[$num-1][$block] = 1 << $block_index;
-            
+
+            // 数の更新
+            for($r=0; $r<9; $r++) {
+                for($c=0; $c<9; $c++) {
+                    $b = intdiv($r, 3) * 3 + intdiv($c, 3);
+                    if($r===$row && $c===$col) {
+                        // 更新するセル
+                        $this->candidates[$r][$c] = 1 << $num;
+                    }elseif($r===$row || $c===$col || $b===$block){
+                        // 更新セルと同じ行、列、ブロック
+                        $this->candidates[$r][$c] &= ~(1 << $num);
+                    }
+                }
+            }
+
             unset($this->unsolves[$row*9+$col]);
         }
     }
 
-    // 矛盾が発生していないか === 81マスに1つでも popcount 0 があれば矛盾
+    // unsolves の getter
+    public function getUnsolves():array {
+        return $this->unsolves;
+    }
+
+    // candidates の getter
+    public function getCandidates(int $index):int {
+        $row = intdiv($index, 9);
+        $col = $index % 9;
+        return $this->candidates[$row][$col];
+    }
+
+    // 全部のcandidates を取得
+    public function getCandidatesAll():array {
+        return $this->candidates;
+    }
+
+    // index 番目の candidates を消す
+    public function removeCandidates(int $index, int $candidates):void {
+        $row = intdiv($index, 9);
+        $col = $index % 9;
+        $mask = ~$candidates & 0x1FF;
+        $this->candidates[$row][$col] &= $mask;
+    }
+
+    // 矛盾が発生していないか === 81マスに1つでも 0 があれば矛盾
     public function valid():bool {
         for($r=0; $r<9; $r++) {
             for($c=0; $c<9; $c++) {
-                if(POPCOUNT[$this->grid[$r][$c]]===0) {
+                if($this->candidates[$r][$c] === 0) {
                     return false;
                 }
             }
@@ -82,20 +97,15 @@ class Box {
     // 答えを表示する文字列
     public function display():string {
         $str = '';
-        foreach($this->grid as $row => $line) {
+        if($this->solved() === true) {
+            $str .= '-----SOLVED-----'.PHP_EOL;
+        }else{
+            $str .= '-----FAILED-----'.PHP_EOL;
+        }
+        foreach($this->candidates as $row => $line) {
             foreach($line as $col => $bit) {
-                if(POPCOUNT[$bit]===1) {
-                    $str .= [
-                        1 => 1,
-                        2 => 2,
-                        4 => 3,
-                        8 => 4,
-                        16 => 5,
-                        32 => 6,
-                        64 => 7,
-                        128 => 8,
-                        256 => 9,
-                    ][$bit];
+                if(Helper::popcount($bit)===1) {
+                    $str .= Helper::getNumber($bit);
                 }else{
                     $str .= '0';
                 }

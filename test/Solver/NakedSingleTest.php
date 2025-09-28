@@ -1,7 +1,7 @@
 <?php
 
 use Sudoku\Box\Box;
-use Sudoku\Box\Number;
+use Sudoku\Box\Helper;
 use Sudoku\Solver\Solver;
 use Sudoku\Solver\NakedSingle;
 use PHPUnit\Framework\TestCase;
@@ -22,10 +22,9 @@ class NakedSingleTest extends TestCase {
         000000000
         000000000
         EOL;
-        $box = new Box($problem);
+        $box = Helper::problemParse($problem);
         $box = NakedSingle::solve($box);
-        //$this->assertSame(2, $box->dumpNumber(0,1));
-        $this->assertSame(1, $box->dumpNumber(0,0));
+        $this->assertSame(1, $box->getCandidates(0));
     }
 }
 
