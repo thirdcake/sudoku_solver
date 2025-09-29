@@ -20,12 +20,16 @@ class HiddenSingle {
             $mask = 0;
             for($c=0; $c<9; $c++) {
                 if($c===$col) continue;
-                $mask |= $box->getCandidates($row * 9 + $c);
+                $mask |= $box->getCandidates($index);
             }
             $bit = $candidates & (~$mask);
             if(Helper::popcount($bit)===1) {
                 $num = Helper::getNumber($bit);
-                break;
+                $box->append($num, $index);
+                if($box->valid() === false) {
+                    return $box;
+                }
+                continue;
             }
 
             // 列を探索
@@ -37,7 +41,11 @@ class HiddenSingle {
             $bit = $candidates & (~$mask);
             if(Helper::popcount($bit)===1) {
                 $num = Helper::getNumber($bit);
-                break;
+                $box->append($num, $index);
+                if($box->valid() === false) {
+                    return $box;
+                }
+                continue;
             }
 
             // blockを探索
@@ -54,13 +62,14 @@ class HiddenSingle {
             $bit = $candidates & (~$mask);
             if(Helper::popcount($bit)===1) {
                 $num = Helper::getNumber($bit);
-                break;
+                $box->append($num, $index);
+                if($box->valid() === false) {
+                    return $box;
+                }
+                continue;
             }
         }
-        if(0 < $num && 0 <= $row && 0 <= $col) {
-            $box->append($num, $row, $col);
-            $box = self::solve($box);
-        }
+
         return $box;
     }
 }

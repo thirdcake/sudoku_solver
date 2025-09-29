@@ -24,7 +24,7 @@ class NakedSingleTest extends TestCase {
         EOL;
         $box = Helper::problemParse($problem);
         $box = NakedSingle::solve($box);
-        $this->assertSame(1, $box->getCandidates(0));
+        $this->assertSame(1, $box->digit(0));
     }
 }
 

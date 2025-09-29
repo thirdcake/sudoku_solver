@@ -9,8 +9,8 @@ class Solver {
     private static array $solvers = [
         NakedSingle::class,
         HiddenSingle::class,
-//        NakedPair::class,
-//        HiddenPair::class,
+        NakedPair::class,
+//        HiddenPair::class,   // 重い
     ];
     public static function solve(Box $box):Box {
         $solvers = self::$solvers;
@@ -24,7 +24,10 @@ class Solver {
             $next_count = count($box->getUnsolves());
         }
         
-        $box = self::dfs($box);
+        $new_box = self::dfs($box);
+        if($new_box->valid()) {
+            return $new_box;
+        }
         return $box;
     }
 
@@ -34,18 +37,16 @@ class Solver {
      * DFS の順番は、候補の少ないものから選んでいくと場合分けが減る
      * solvers が矛盾を見つけたら戻る
      */
-    public static function dfs(Box $box):Box {
+    public static function dfs(Box $box):Box|false {
 
-        $unsolves = $box->getUnsolves();
-        if(count($unsolves)===0) {  // 空のとき終わる
-            return $box;
-        }
+        if($box->solved()) return $box;
 
         $minIndex = -1;
         $minCount = 10;
-        foreach($unsolves as $index) {
+        foreach($box->getUnsolves() as $index => $_bool) {
             $candidates = $box->getCandidates($index);
             $pc = Helper::popcount($candidates);
+            if($pc <= 1) continue;
             if($pc < $minCount) {
                 $minCount = $pc;
                 $minIndex = $index;
@@ -58,39 +59,33 @@ class Solver {
         // 候補のうち一つを入れてみて、矛盾が無ければ再帰する
         for($c=0; $c<9; $c++) {
 
-            $nextBox = clone $box;
-            
             if(($candidates & (1 << $c)) === 0) continue;
 
-            $row = intdiv($minIndex, 9);
-            $col = $minIndex % 9;
-            $nextBox->append($c+1, $row, $col);
+            $nextBox = clone $box;
+            $nextBox->append($c+1, $minIndex);
+            if($nextBox->valid()===false) continue;
             
             // solver で変更が無くなるまで繰り返す
             $solvers = self::$solvers;
             $prev_count = -1;
-            $next_count = count($box->getUnsolves());
+            $next_count = count($nextBox->getUnsolves());
             while($prev_count !== $next_count) {
                 foreach($solvers as $solver) {
                     $nextBox = $solver::solve($nextBox);
-                    if(!$nextBox->valid()) break 2;
+                    if($nextBox->valid() === false) break 2;
                 }
                 $prev_count = $next_count;
-                $next_count = count($box->getUnsolves());
+                $next_count = count($nextBox->getUnsolves());
             }
 
             // 矛盾があればループから抜ける
-            if(! $nextBox->valid()) {
-                continue;
-            }
+            if($nextBox->valid() === false) continue;
 
             // 矛盾が無ければ再帰する
             $nextBox = self::dfs($nextBox);
 
             // すべてが埋まったら戻る
-            if($nexBox->solved()) {
-                return $nextBox;
-            }
+            if($nextBox->solved()) return $nextBox;
         }
 
         // すべての仮定がうまくいかなかったら戻る

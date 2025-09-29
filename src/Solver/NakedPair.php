@@ -25,7 +25,7 @@ class NakedPair {
             $count = Helper::popcount($candidates);
             foreach($arr['row'] as $r => $idxs) {
                 $cnt = count($idxs);
-                if($cnt<2 || 4 < $cnt) continue;
+                if($cnt < 2 || 4 < $cnt) continue;
                 if($cnt === $count) {
                     for($c=0; $c<9; $c++) {
                         $idx = $r * 9 + $c;
@@ -49,7 +49,11 @@ class NakedPair {
                 $cnt = count($idxs);
                 if($cnt<2 || 4 < $cnt) continue;
                 if($cnt === $count) {
-                    // r, c へ変換方法
+                    for($p=0; $p<9; $p++) {
+                        $idx = intdiv($b, 3) * 27 + ($b % 3) * 3 + intdiv($p, 3) * 9 + ($p % 3);
+                        if(in_array($idx, $idxs, true)) continue;
+                        $box->removeCandidates($idx, $candidates);
+                    }
                 }
             }
         }

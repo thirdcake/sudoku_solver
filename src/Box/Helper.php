@@ -85,6 +85,8 @@ class Helper {
 
     // popcount が1の数字を返す
     public static function getNumber(int $bit):int {
+        if($bit===0) return 0;
+        if(self::popcount($bit)!==1) return 0;
         return [
             1 => 1,
             2 => 2,
@@ -101,13 +103,10 @@ class Helper {
     // 問題の文字列を parse
     public static function problemParse(string $problem):Box {
         $box = new Box();
-        $pp = preg_split('/\n/', $problem);
-        foreach($pp as $row => $x) {
-            $line = str_split(trim($x));
-            foreach($line as $col => $num) {
-                $num = (int) $num;
-                $box->append($num, $row, $col);
-            }
+        $pp = str_split(preg_replace('/\s+/', '', $problem));
+        foreach($pp as $index => $int) {
+            $int = (int) $int;
+            $box->append($int, $index);
         }
         return $box;
     }

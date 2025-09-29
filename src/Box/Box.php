@@ -5,51 +5,71 @@ namespace Sudoku\Box;
 class Box {
     /**
      * $row 行 $col 列の候補数をbitで管理する
+     * 可能性のある数字に1を立てる。確定したら popcount 1になる
      * 人間が見る数独ボードとほぼ同じ
      */
     private array $candidates;
+
+    /**
+     * row 行、col 列、太線内 block で、確定している数字を bit で管理する
+     * 確定した数字に1を立てる
+     */
+    private array $rows;
+    private array $cols;
+    private array $blocks;
 
     /**
      * 解けていないindex。
      */
     private array $unsolves;
 
+    /**
+     * 矛盾が生じていないか
+     */
+    private bool $valid;
+
     public function __construct() {
-        $this->candidates = [];
+        $this->candidates = array_fill(0, 81, 0x1FF);
+
+        $this->rows = array_fill(0, 9, 0);
+        $this->cols = array_fill(0, 9, 0);
+        $this->blocks = array_fill(0, 9, 0);
 
         $this->unsolves = array_fill(0, 81, true);
 
-        for($i=0; $i<9; $i++) {
-            for($j=0; $j<9; $j++) {
-                $this->candidates[$i][$j] = 0x1FF;  // 2進数で1が9個
-            }
-        }
+        $this->valid = true;
+
     }
 
     /**
      * 数字を確定させる。
      */
-    public function append(int $num, int $row, int $col):void {
-        if($num!==0) {
-            $num -= 1;  // $num は 0-index
-            $block = intdiv($row, 3) * 3 + intdiv($col, 3);
+    public function append(int $num, int $index):void {
+        if($num===0) return;
 
-            // 数の更新
-            for($r=0; $r<9; $r++) {
-                for($c=0; $c<9; $c++) {
-                    $b = intdiv($r, 3) * 3 + intdiv($c, 3);
-                    if($r===$row && $c===$col) {
-                        // 更新するセル
-                        $this->candidates[$r][$c] = 1 << $num;
-                    }elseif($r===$row || $c===$col || $b===$block){
-                        // 更新セルと同じ行、列、ブロック
-                        $this->candidates[$r][$c] &= ~(1 << $num);
-                    }
-                }
-            }
+        $num -= 1;
 
-            unset($this->unsolves[$row*9+$col]);
+        $row = intdiv($index, 9);
+        $col = $index % 9;
+        $block = intdiv($row, 3) * 3 + intdiv($col, 3);
+
+        $bit = 1 << $num;
+
+        $this->candidates[$index] &= $bit;
+        if($this->candidates[$index]===0) {
+            $this->valid = false;
         }
+
+        // 行 更新
+        $this->rows[$row] |= $bit;
+
+        // 列 更新
+        $this->cols[$col] |= $bit;
+
+        // block 更新
+        $this->blocks[$block] |= $bit;
+
+        unset($this->unsolves[$index]);
     }
 
     // unsolves の getter
@@ -57,36 +77,39 @@ class Box {
         return $this->unsolves;
     }
 
-    // candidates の getter
+    // 候補数のbitを返す
     public function getCandidates(int $index):int {
+
         $row = intdiv($index, 9);
         $col = $index % 9;
-        return $this->candidates[$row][$col];
+        $block = intdiv($row, 3) * 3 + intdiv($col, 3);
+
+        $mask = $this->rows[$row] | $this->cols[$col] | $this->blocks[$block];
+
+        return $this->candidates[$index] & ~$mask;
     }
 
-    // 全部のcandidates を取得
-    public function getCandidatesAll():array {
-        return $this->candidates;
+    // 確定数字を返す
+    public function digit(int $index):int {
+        $row = intdiv($index, 9);
+        $col = $index % 9;
+        return Helper::getNumber($this->candidates[$index]);
     }
 
-    // index 番目の candidates を消す
+    // index 番目の候補数を消す
     public function removeCandidates(int $index, int $candidates):void {
         $row = intdiv($index, 9);
         $col = $index % 9;
         $mask = ~$candidates & 0x1FF;
-        $this->candidates[$row][$col] &= $mask;
+        $this->candidates[$index] &= $mask;
+        if($this->candidates[$index]===0) {
+            $this->valid = false;
+        }
     }
 
-    // 矛盾が発生していないか === 81マスに1つでも 0 があれば矛盾
+    // 矛盾が無いか
     public function valid():bool {
-        for($r=0; $r<9; $r++) {
-            for($c=0; $c<9; $c++) {
-                if($this->candidates[$r][$c] === 0) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return $this->valid;
     }
 
     // 解けているか === unsolves が空
@@ -102,8 +125,9 @@ class Box {
         }else{
             $str .= '-----FAILED-----'.PHP_EOL;
         }
-        foreach($this->candidates as $row => $line) {
-            foreach($line as $col => $bit) {
+        for($r=0; $r<9; $r++) {
+            for($c=0; $c<9; $c++) {
+                $bit = $this->candidates[$r * 9 + $c];
                 if(Helper::popcount($bit)===1) {
                     $str .= Helper::getNumber($bit);
                 }else{
